@@ -1,0 +1,369 @@
+
+from os.path import splitext
+
+common = ""
+
+rule all:
+	input:
+		"mmseq/uniclust50.index"
+
+def root_in(wildcards, input):
+	roots = []
+	for fname in input:
+		root, ext = splitext(fname)
+		roots.append(root)
+	return(roots)
+
+def root_out(wildcards, output):
+	roots = []
+	for fname in output:
+		root, ext = splitext(fname)
+		roots.append(root)
+	return(roots)
+
+rule createdb:
+	input:
+		"input/longest_orfs.pep"
+	output:
+		"mmseq/uniprot_db"
+	params:
+		max_seq_len = 14000
+	shell:
+		"mmseqs createdb {input} {output} --max-seq-len {params.max_seq_len}"
+
+rule prefilter_FRAG:
+	input:
+		"mmseq/uniprot_db"
+	output:
+		"mmseq/pref_step_FRAG.index"
+	params:
+		output = root_out,
+		max_seqs = 4000,
+		min_ungapped_score = 100
+	shell:
+		"mmseqs prefilter {input} {input} {params.output} --max-seqs {params.max_seqs} --min-ungapped-score {params.min_ungapped_score} --comp-bias-corr 0 -s 1"
+
+rule rescorediagonal_FRAG:
+	input:
+		"mmseq/pref_step_FRAG.index",
+		db = "mmseq/uniprot_db"
+	output:
+		"mmseq/aln_step_FRAG.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		cov = 0.95,
+		min_seq_id = 0.9
+	shell:
+		"mmseqs rescorediagonal {input.db} {input.db} {params.input} {params.output} --min-seq-id {params.min_seq_id} -c {params.cov}"
+
+rule clust_FRAG:
+	input:
+		"mmseq/aln_step_FRAG.index",
+		db = "mmseq/uniprot_db"
+	output:
+		"mmseq/clu_frag.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs clust {input.db} {params.input} {params.output} --cluster-mode 2"
+
+rule order_frag:
+	input:
+		"mmseq/clu_frag.index"
+	output:
+		"mmseq/order_frag"
+	shell:
+		"cut -f1 {input} > {output}"
+
+rule createsubdb_redundancy:
+	input:
+		db = "mmseq/uniprot_db",
+		order = "mmseq/order_frag"
+	output:
+		"mmseq/input_step_redundancy"
+	shell:
+		"mmseqs createsubdb {input.order} {input.db} {output}"
+
+rule clusthash_redundancy:
+	input:
+		"mmseq/input_step_redundancy"
+	output:
+		"mmseq/aln_redundancy.index"
+	params:
+		output = root_out,
+		min_seq_id = 0.9
+	shell:
+		"mmseqs clusthash {input} {params.output} --min-seq-id {params.min_seq_id}"
+
+rule clust_redundancy:
+	input:
+		"mmseq/aln_redundancy.index",
+		db = "mmseq/input_step_redundancy"
+	output:
+		"mmseq/clu_redundancy.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs clust {input.db} {params.input} {params.output} --cluster-mode 2"
+
+rule order_redundancy:
+	input:
+		"mmseq/clu_redundancy.index"
+	output:
+		"mmseq/order_redundancy"
+	shell:
+		"cut -f1 {input} > {output}"
+
+rule createsubdb_step0:
+	input:
+		db = "mmseq/uniprot_db",
+		order = "mmseq/order_redundancy"
+	output:
+		"mmseq/input_step0.index"
+	params:
+		output = root_out
+	shell:
+		"mmseqs createsubdb {input.order} {input.db} {params.output}"
+
+rule createsubdb_FRAG_filtered:
+	input:
+		"mmseq/pref_step_FRAG.index",
+		order = "mmseq/order_redundancy"
+	output:
+		"mmseq/pref_step_FRAG_filtered.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs createsubdb {input.order} {params.input} {params.output}"
+
+rule filterdb_step0:
+	input:
+		"mmseq/pref_step_FRAG_filtered.index",
+		order = "mmseq/order_redundancy"
+	output:
+		"mmseq/pref_step0.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs filterdb {params.input} {params.output} --filter-file {input.order}"
+
+rule align_step0:
+	input:
+		"mmseq/input_step0.index",
+		"mmseq/pref_step0.index"
+	output:
+		"mmseq/aln_step0.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		max_seqs = 100,
+		c = 0.9,
+		min_seq_id = 0.9,
+		e = 0.001,
+		max_seq_len = 32768,
+		max_rejected = 2147483647,
+		alignment_mode = 2,
+		comp_bias_corr = 0,
+		common = common
+	shell:
+		"mmseqs align {params.input[0]} {params.input[0]} {params.input[1]} {params.output} --max-seqs {params.max_seqs} -c {params.c} --alignment-mode {params.alignment_mode} --min-seq-id {params.min_seq_id} --comp-bias-corr {params.comp_bias_corr} -e {params.e} --max-seq-len {params.max_seq_len} --max-rejected {params.max_rejected} {params.common}"
+
+rule clust_step0:
+	input:
+		"mmseq/input_step0.index",
+		"mmseq/aln_step0.index"
+	output:
+		"mmseq/clu_step0.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		cluster_mode = 2
+	shell:
+		"mmseqs clust {params.input[0]} {params.input[1]} {params.output} --cluster-mode {params.cluster_mode}"
+
+rule order_step0:
+	input:
+		"mmseq/clu_step0.index"
+	output:
+		"mmseq/order_step0"
+	shell:
+		"cut -f1 {input} > {output}"
+
+rule createsubdb_step1:
+	input:
+		"mmseq/input_step0.index",
+		order = "mmseq/order_step0"
+	output:
+		"mmseq/input_step1.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs createsubdb {input.order} {params.input} {params.output}"
+
+rule prefilter_step1:
+	input:
+		"mmseq/input_step1.index"
+	output:
+		"mmseq/pref_step1.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		max_seqs = 100,
+		c = 0.9,
+		comp_bias_corr = 1,
+		s = 2,
+		common = common
+	shell:
+		"mmseqs prefilter {params.input} {params.input} {params.output} --max-seqs {params.max_seqs} -c {params.c} --comp-bias-corr {params.comp_bias_corr} -s {params.s} {params.common}"
+
+rule align_step1:
+	input:
+		"mmseq/input_step1.index",
+		"mmseq/pref_step1.index"
+	output:
+		"mmseq/aln_step1.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		max_seqs = 100,
+		c = 0.8,
+		alignment_mode = 2,
+		min_seq_id = 0.9,
+		comp_bias_corr = 1,
+		common = common,
+		e = 0.001,
+		max_seq_len = 32768,
+		max_rejected = 2147483647
+	shell:
+		"mmseqs align {params.input} {params.input[0]} {params.input[1]} {params.output} --max-seqs {params.max_seqs} -c {params.c} --alignment-mode {params.alignment_mode} --min-seq-id {params.min_seq_id} --comp-bias-corr {params.comp_bias_corr} -e {params.e} --max-seq-len {params.max_seq_len} --max-rejected {params.max_rejected} {params.common}"
+
+rule clust_step1:
+	input:
+		"mmseq/input_step1.index",
+		"mmseq/aln_step1.index"
+	output:
+		"mmseq/clu_step1.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		cluster_mode = 0
+	shell:
+		"mmseqs clust {params.input[0]} {params.input[1]} {params.output} --cluster-mode {params.cluster_mode}"
+
+rule mergeclusters_uniclust90:
+	input:
+		"mmseq/uniprot_db",
+		"mmseq/clu_frag.index",
+		"mmseq/clu_redundancy.index",
+		"mmseq/clu_step0.index",
+		"mmseq/clu_step1.index"
+	output:
+		"mmseq/uniclust90"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs mergeclusters {input[0]} {params.output} {params.input[1]} {params.input[2]} {params.input[3]} {params.input[4]}"
+
+rule order_step1:
+	input:
+		"mmseq/clu_step1.index"
+	output:
+		"mmseq/order_step1"
+	shell:
+		"cut -f1 {input} > {output}"
+
+rule createsubdb_step2:
+	input:
+		"mmseq/input_step1.index",
+		order = "mmseq/order_step1"
+	output:
+		"mmseq/input_step2.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs createsubdb {input.order} {params.input} {params.output}"
+
+rule prefilter_step2:
+	input:
+		"mmseq/input_step2.index"
+	output:
+		"mmseq/pref_step2.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		max_seqs = 300,
+		c = 0.8,
+		comp_bias_corr = 1,
+		s = 6,
+		common = common
+	shell:
+		"mmseqs prefilter {params.input} {params.input} {params.output} --max-seqs {params.max_seqs} -c {params.c} --comp-bias-corr {params.comp_bias_corr} -s {params.s} {params.common}"
+
+rule align_step2:
+	input:
+		"mmseq/input_step2.index",
+		"mmseq/pref_step2.index"
+	output:
+		"mmseq/aln_step2.index"
+	params:
+		input  = root_in,
+		output = root_out,
+		max_seqs = 300,
+		c = 0.8,
+		alignment_mode = 3,
+		min_seq_id = 0.3,
+		comp_bias_corr = 1,
+		e = 0.001,
+		max_seq_len = 32768, 
+		max_rejected = 2147483647,
+		common = common
+	shell:
+		"mmseqs align {params.input[0]} {params.input[0]} {params.input[1]} {params.output} --alignment-mode {params.alignment_mode} --max-seqs {params.max_seqs} -c {params.c} --min-seq-id {params.min_seq_id} --comp-bias-corr {params.comp_bias_corr} -e {params.e} --max-seq-len {params.max_seq_len} --max-rejected {params.max_rejected} {params.common}"
+
+rule filterdb_uniclust50:
+	input:
+		"mmseq/aln_step2.index"
+	output:
+		"mmseq/aln_uniclust50.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs filterdb {params.input} {params.output} --filter-column 3 --filter-regex '(0\\.[5-9][0-9]{{2}}|1\\.000)'"
+
+rule clust_uniclust50:
+	input:
+		"mmseq/input_step2.index",
+		"mmseq/aln_uniclust50.index"
+	output:
+		"mmseq/clu_uniclust50.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs clust {params.input[0]} {params.input[1]} {params.output} --cluster-mode 0"
+
+rule mergeclusters_uniclust50:
+	input:
+		"mmseq/clu_frag.index",
+		"mmseq/clu_redundancy.index",
+		"mmseq/clu_step0.index",
+		"mmseq/clu_step1.index",
+		"mmseq/clu_uniclust50.index",
+		db = "mmseq/uniprot_db"
+	output:
+		"mmseq/uniclust50.index"
+	params:
+		input  = root_in,
+		output = root_out
+	shell:
+		"mmseqs mergeclusters {input.db} {params.output} {params.input[0]} {params.input[1]} {params.input[2]} {params.input[3]} {params.input[4]}"
+

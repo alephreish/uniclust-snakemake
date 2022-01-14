@@ -5,7 +5,7 @@ common = ""
 
 rule all:
 	input:
-		"mmseqs/hulaclust50.index"
+		"mmseqs/hulaclust50/db.index"
 
 def get_root(namedlist):
 	roots = []
@@ -26,7 +26,7 @@ rule createdb:
 	input:
 		"input/longest_orfs.pep"
 	output:
-		"mmseqs/hulaprot_db"
+		"mmseqs/createdb/db"
 	params:
 		max_seq_len = 14000 # not used
 	shell:
@@ -34,9 +34,9 @@ rule createdb:
 
 rule prefilter_FRAG:
 	input:
-		"mmseqs/hulaprot_db"
+		"mmseqs/createdb/db"
 	output:
-		"mmseqs/pref_step_FRAG.index"
+		"mmseqs/pref_step_FRAG/db.index"
 	params:
 		output = root_out,
 		max_seqs = 4000,
@@ -48,10 +48,10 @@ rule prefilter_FRAG:
 
 rule rescorediagonal_FRAG:
 	input:
-		"mmseqs/pref_step_FRAG.index",
-		db = "mmseqs/hulaprot_db"
+		"mmseqs/pref_step_FRAG/db.index",
+		db = "mmseqs/createdb/db"
 	output:
-		"mmseqs/aln_step_FRAG.index"
+		"mmseqs/aln_step_FRAG/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -64,10 +64,10 @@ rule rescorediagonal_FRAG:
 
 rule clust_FRAG:
 	input:
-		"mmseqs/aln_step_FRAG.index",
-		db = "mmseqs/hulaprot_db"
+		"mmseqs/aln_step_FRAG/db.index",
+		db = "mmseqs/createdb/db"
 	output:
-		"mmseqs/clu_frag.index"
+		"mmseqs/clu_frag/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -79,7 +79,7 @@ rule clust_FRAG:
 
 rule order_frag:
 	input:
-		"mmseqs/clu_frag.index"
+		"mmseqs/clu_frag/db.index"
 	output:
 		"mmseqs/order_frag"
 	shell:
@@ -88,9 +88,9 @@ rule order_frag:
 rule createsubdb_redundancy:
 	input:
 		order = "mmseqs/order_frag",
-		db = "mmseqs/hulaprot_db"
+		db = "mmseqs/createdb/db"
 	output:
-		"mmseqs/input_step_redundancy.index"
+		"mmseqs/input_step_redundancy/db.index"
 	params:
 		output = root_out
 	shell:
@@ -98,9 +98,9 @@ rule createsubdb_redundancy:
 
 rule clusthash_redundancy:
 	input:
-		"mmseqs/input_step_redundancy.index"
+		"mmseqs/input_step_redundancy/db.index"
 	output:
-		"mmseqs/aln_redundancy.index"
+		"mmseqs/aln_redundancy/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -112,10 +112,10 @@ rule clusthash_redundancy:
 
 rule clust_redundancy:
 	input:
-		"mmseqs/input_step_redundancy.index",
-		"mmseqs/aln_redundancy.index"
+		"mmseqs/input_step_redundancy/db.index",
+		"mmseqs/aln_redundancy/db.index"
 	output:
-		"mmseqs/clu_redundancy.index"
+		"mmseqs/clu_redundancy/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -127,7 +127,7 @@ rule clust_redundancy:
 
 rule order_redundancy:
 	input:
-		"mmseqs/clu_redundancy.index"
+		"mmseqs/clu_redundancy/db.index"
 	output:
 		"mmseqs/order_redundancy"
 	shell:
@@ -135,10 +135,10 @@ rule order_redundancy:
 
 rule createsubdb_step0:
 	input:
-		db = "mmseqs/hulaprot_db",
+		db = "mmseqs/createdb/db",
 		order = "mmseqs/order_redundancy"
 	output:
-		"mmseqs/input_step0.index"
+		"mmseqs/input_step0/db.index"
 	params:
 		output = root_out
 	shell:
@@ -146,10 +146,10 @@ rule createsubdb_step0:
 
 rule createsubdb_FRAG_filtered:
 	input:
-		"mmseqs/pref_step_FRAG.index",
+		"mmseqs/pref_step_FRAG/db.index",
 		order = "mmseqs/order_redundancy"
 	output:
-		"mmseqs/pref_step_FRAG_filtered.index"
+		"mmseqs/pref_step_FRAG_filtered/db.index"
 	params:
 		input  = root_in,
 		output = root_out
@@ -158,10 +158,10 @@ rule createsubdb_FRAG_filtered:
 
 rule filterdb_step0:
 	input:
-		"mmseqs/pref_step_FRAG_filtered.index",
+		"mmseqs/pref_step_FRAG_filtered/db.index",
 		order = "mmseqs/order_redundancy"
 	output:
-		"mmseqs/pref_step0.index"
+		"mmseqs/pref_step0/db.index"
 	params:
 		input  = root_in,
 		output = root_out
@@ -172,10 +172,10 @@ rule filterdb_step0:
 
 rule align_step0:
 	input:
-		"mmseqs/input_step0.index",
-		"mmseqs/pref_step0.index"
+		"mmseqs/input_step0/db.index",
+		"mmseqs/pref_step0/db.index"
 	output:
-		"mmseqs/aln_step0.index"
+		"mmseqs/aln_step0/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -195,10 +195,10 @@ rule align_step0:
 
 rule clust_step0:
 	input:
-		"mmseqs/input_step0.index",
-		"mmseqs/aln_step0.index"
+		"mmseqs/input_step0/db.index",
+		"mmseqs/aln_step0/db.index"
 	output:
-		"mmseqs/clu_step0.index"
+		"mmseqs/clu_step0/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -210,7 +210,7 @@ rule clust_step0:
 
 rule order_step0:
 	input:
-		"mmseqs/clu_step0.index"
+		"mmseqs/clu_step0/db.index"
 	output:
 		"mmseqs/order_step0"
 	shell:
@@ -218,10 +218,10 @@ rule order_step0:
 
 rule createsubdb_step1:
 	input:
-		"mmseqs/input_step0.index",
+		"mmseqs/input_step0/db.index",
 		order = "mmseqs/order_step0"
 	output:
-		"mmseqs/input_step1.index"
+		"mmseqs/input_step1/db.index"
 	params:
 		input  = root_in,
 		output = root_out
@@ -230,9 +230,9 @@ rule createsubdb_step1:
 
 rule prefilter_step1:
 	input:
-		"mmseqs/input_step1.index"
+		"mmseqs/input_step1/db.index"
 	output:
-		"mmseqs/pref_step1.index"
+		"mmseqs/pref_step1/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -248,10 +248,10 @@ rule prefilter_step1:
 
 rule align_step1:
 	input:
-		"mmseqs/input_step1.index",
-		"mmseqs/pref_step1.index"
+		"mmseqs/input_step1/db.index",
+		"mmseqs/pref_step1/db.index"
 	output:
-		"mmseqs/aln_step1.index"
+		"mmseqs/aln_step1/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -271,10 +271,10 @@ rule align_step1:
 
 rule clust_step1:
 	input:
-		"mmseqs/input_step1.index",
-		"mmseqs/aln_step1.index"
+		"mmseqs/input_step1/db.index",
+		"mmseqs/aln_step1/db.index"
 	output:
-		"mmseqs/clu_step1.index"
+		"mmseqs/clu_step1/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -286,11 +286,11 @@ rule clust_step1:
 
 rule mergeclusters_hulaclust90:
 	input:
-		"mmseqs/clu_frag.index",
-		"mmseqs/clu_redundancy.index",
-		"mmseqs/clu_step0.index",
-		"mmseqs/clu_step1.index",
-		db = "mmseqs/hulaprot_db"
+		"mmseqs/clu_frag/db.index",
+		"mmseqs/clu_redundancy/db.index",
+		"mmseqs/clu_step0/db.index",
+		"mmseqs/clu_step1/db.index",
+		db = "mmseqs/createdb/db"
 	output:
 		"mmseqs/hulaclust90"
 	params:
@@ -303,7 +303,7 @@ rule mergeclusters_hulaclust90:
 
 rule order_step1:
 	input:
-		"mmseqs/clu_step1.index"
+		"mmseqs/clu_step1/db.index"
 	output:
 		"mmseqs/order_step1"
 	shell:
@@ -311,10 +311,10 @@ rule order_step1:
 
 rule createsubdb_step2:
 	input:
-		"mmseqs/input_step1.index",
+		"mmseqs/input_step1/db.index",
 		order = "mmseqs/order_step1"
 	output:
-		"mmseqs/input_step2.index"
+		"mmseqs/input_step2/db.index"
 	params:
 		input  = root_in,
 		output = root_out
@@ -323,9 +323,9 @@ rule createsubdb_step2:
 
 rule prefilter_step2:
 	input:
-		"mmseqs/input_step2.index"
+		"mmseqs/input_step2/db.index"
 	output:
-		"mmseqs/pref_step2.index"
+		"mmseqs/pref_step2/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -341,10 +341,10 @@ rule prefilter_step2:
 
 rule align_step2:
 	input:
-		"mmseqs/input_step2.index",
-		"mmseqs/pref_step2.index"
+		"mmseqs/input_step2/db.index",
+		"mmseqs/pref_step2/db.index"
 	output:
-		"mmseqs/aln_step2.index"
+		"mmseqs/aln_step2/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -364,9 +364,9 @@ rule align_step2:
 
 rule filterdb_hulaclust50:
 	input:
-		"mmseqs/aln_step2.index"
+		"mmseqs/aln_step2/db.index"
 	output:
-		"mmseqs/aln_hulaclust50.index"
+		"mmseqs/aln_hulaclust50/db.index"
 	params:
 		input  = root_in,
 		output = root_out
@@ -377,10 +377,10 @@ rule filterdb_hulaclust50:
 
 rule clust_hulaclust50:
 	input:
-		"mmseqs/input_step2.index",
-		"mmseqs/aln_hulaclust50.index"
+		"mmseqs/input_step2/db.index",
+		"mmseqs/aln_hulaclust50/db.index"
 	output:
-		"mmseqs/clu_hulaclust50.index"
+		"mmseqs/clu_hulaclust50/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -392,14 +392,14 @@ rule clust_hulaclust50:
 
 rule mergeclusters_hulaclust50:
 	input:
-		"mmseqs/clu_frag.index",
-		"mmseqs/clu_redundancy.index",
-		"mmseqs/clu_step0.index",
-		"mmseqs/clu_step1.index",
-		"mmseqs/clu_hulaclust50.index",
-		db = "mmseqs/hulaprot_db"
+		"mmseqs/clu_frag/db.index",
+		"mmseqs/clu_redundancy/db.index",
+		"mmseqs/clu_step0/db.index",
+		"mmseqs/clu_step1/db.index",
+		"mmseqs/clu_hulaclust50/db.index",
+		db = "mmseqs/createdb/db"
 	output:
-		"mmseqs/hulaclust50.index"
+		"mmseqs/hulaclust50/db.index"
 	params:
 		input  = root_in,
 		output = root_out

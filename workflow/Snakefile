@@ -1,11 +1,13 @@
 
 from os.path import splitext
 
+input_fasta = config["fasta"] if "fasta" in config else "input/proteins.fasta"
+
 common = ""
 
 rule all:
 	input:
-		"mmseqs/hulaclust50/db.index"
+		"mmseqs/clust50/db.index"
 
 def get_root(namedlist):
 	roots = []
@@ -24,7 +26,7 @@ def root_out(wildcards, output):
 
 rule createdb:
 	input:
-		"input/longest_orfs.pep"
+		input_fasta
 	output:
 		"mmseqs/createdb/db"
 	params:
@@ -284,7 +286,7 @@ rule clust_step1:
 	shell:
 		"mmseqs clust {params.input} {params.output} --threads {threads} --cluster-mode {params.cluster_mode}"
 
-rule mergeclusters_hulaclust90:
+rule mergeclusters_clust90:
 	input:
 		"mmseqs/clu_frag/db.index",
 		"mmseqs/clu_redundancy/db.index",
@@ -292,7 +294,7 @@ rule mergeclusters_hulaclust90:
 		"mmseqs/clu_step1/db.index",
 		db = "mmseqs/createdb/db"
 	output:
-		"mmseqs/hulaclust90"
+		"mmseqs/clust90"
 	params:
 		input  = root_in,
 		output = root_out
@@ -362,11 +364,11 @@ rule align_step2:
 	shell:
 		"mmseqs align {params.input[0]} {params.input} {params.output} --threads {threads} -c {params.c} --alignment-mode {params.alignment_mode} --min-seq-id {params.min_seq_id} --comp-bias-corr {params.comp_bias_corr} -e {params.e} --max-seq-len {params.max_seq_len} --max-rejected {params.max_rejected} {params.common}"
 
-rule filterdb_hulaclust50:
+rule filterdb_clust50:
 	input:
 		"mmseqs/aln_step2/db.index"
 	output:
-		"mmseqs/aln_hulaclust50/db.index"
+		"mmseqs/aln_clust50/db.index"
 	params:
 		input  = root_in,
 		output = root_out
@@ -375,12 +377,12 @@ rule filterdb_hulaclust50:
 	shell:
 		"mmseqs filterdb {params.input} {params.output} --threads {threads} --filter-column 3 --filter-regex '(0\\.[5-9][0-9]{{2}}|1\\.000)'"
 
-rule clust_hulaclust50:
+rule clust_clust50:
 	input:
 		"mmseqs/input_step2/db.index",
-		"mmseqs/aln_hulaclust50/db.index"
+		"mmseqs/aln_clust50/db.index"
 	output:
-		"mmseqs/clu_hulaclust50/db.index"
+		"mmseqs/clu_clust50/db.index"
 	params:
 		input  = root_in,
 		output = root_out,
@@ -390,16 +392,16 @@ rule clust_hulaclust50:
 	shell:
 		"mmseqs clust {params.input} {params.output} --threads {threads} --cluster-mode {params.cluster_mode}"
 
-rule mergeclusters_hulaclust50:
+rule mergeclusters_clust50:
 	input:
 		"mmseqs/clu_frag/db.index",
 		"mmseqs/clu_redundancy/db.index",
 		"mmseqs/clu_step0/db.index",
 		"mmseqs/clu_step1/db.index",
-		"mmseqs/clu_hulaclust50/db.index",
+		"mmseqs/clu_clust50/db.index",
 		db = "mmseqs/createdb/db"
 	output:
-		"mmseqs/hulaclust50/db.index"
+		"mmseqs/clust50/db.index"
 	params:
 		input  = root_in,
 		output = root_out
